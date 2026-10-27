@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHISH | PHISHING THREAT ANALYZER</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- DARK PURPLE UNIVERSE THEME --- */
+        :root {
+            --bg-base: #0a0514;
+            --bg-gradient: radial-gradient(circle at 50% 0%, #2d1b4e 0%, #0a0514 70%);
+            --panel-bg: rgba(25, 15, 45, 0.6);
+            --panel-border: rgba(139, 92, 246, 0.4);
+            --text-main: #e2e8f0;
+            --text-muted: #a78bfa;
+            --accent: #a855f7;
+            --accent-hover: #9333ea;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --terminal-bg: rgba(0, 0, 0, 0.6);
+            --font-main: 'Inter', system-ui, sans-serif;
+            --font-mono: 'Fira Code', 'Courier New', monospace;
+        }
+
+        /* --- LIGHT PINK THEME --- */
+        body.light-mode {
+            --bg-base: #fdf2f8;
+            --bg-gradient: radial-gradient(circle at 50% 0%, #fce7f3 0%, #fbcfe8 100%);
+            --panel-bg: rgba(255, 255, 255, 0.7);
+            --panel-border: rgba(244, 114, 182, 0.5);
+            --text-main: #475569;
+            --text-muted: #db2777;
+            --accent: #ec4899;
+            --accent-hover: #be185d;
+            --terminal-bg: rgba(255, 255, 255, 0.8);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-base); 
+            background-image: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            font-family: var(--font-main); 
+            min-height: 100vh; 
+            padding: 2rem; 
+            transition: all 0.5s ease;
+        }
+
+        .container { max-width: 1300px; margin: 0 auto; position: relative; }
+
+        /* Theme Toggle Switch */
+        .theme-switch-wrapper { position: absolute; top: 0; right: 0; display: flex; align-items: center; gap: 10px; }
+        .theme-switch-wrapper span { font-weight: 600; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase;}
+        .theme-switch { display: inline-block; height: 24px; position: relative; width: 44px; }
+        .theme-switch input { display: none; }
+        .slider { background-color: #2d1b4e; bottom: 0; cursor: pointer; left: 0; position: absolute; right: 0; top: 0; transition: .4s; border-radius: 34px; border: 1px solid var(--panel-border);}
+        .slider:before { background-color: #fff; bottom: 2px; content: ""; height: 18px; left: 4px; position: absolute; transition: .4s; width: 18px; border-radius: 50%; }
+        input:checked + .slider { background-color: #fbcfe8; }
+        input:checked + .slider:before { transform: translateX(18px); background-color: #ec4899; }
+
+        header { margin-bottom: 2rem; border-bottom: 1px solid var(--panel-border); padding-bottom: 1rem; display: flex; justify-content: space-between; align-items: flex-end;}
+        header h1 { font-size: 2.2rem; font-weight: 800; background: linear-gradient(to right, var(--accent), #f472b6); -webkit-background-clip: text; color: transparent; display: flex; align-items: center; gap: 10px;}
+        header h1 i { color: var(--accent); }
+        header p { color: var(--text-muted); font-size: 0.95rem; margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 1px;}
+
+        /* Search Bar */
+        .search-wrapper { display: flex; gap: 1rem; margin-bottom: 2rem; }
+        .search-input-box {
+            flex: 1; display: flex; align-items: center; background: var(--panel-bg);
+            border: 1px solid var(--panel-border); border-radius: 8px; padding: 0 1rem; transition: border 0.2s;
+            backdrop-filter: blur(12px); box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+        .search-input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 15px rgba(168, 85, 247, 0.4); }
+        .search-icon { color: var(--text-muted); margin-right: 10px; }
+        .search-input-box input {
+            flex: 1; background: transparent; border: none; color: var(--text-main); font-size: 1rem; padding: 1rem 0; outline: none;
+        }
+        .search-input-box input::placeholder { color: var(--text-muted); opacity: 0.7; }
+        
+        .btn-primary {
+            background: var(--accent); color: white; border: none; padding: 0 2rem; border-radius: 8px;
+            font-weight: 700; font-size: 1rem; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3); text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; box-shadow: none; transform: none; }
+        
+        .btn-secondary {
+            background: var(--panel-bg); color: var(--text-muted); border: 1px solid var(--panel-border); padding: 0 1.5rem; border-radius: 8px;
+            font-weight: 600; font-size: 0.9rem; cursor: pointer; transition: all 0.2s; display: none; align-items: center; gap: 8px;
+            backdrop-filter: blur(5px);
+        }
+        .btn-secondary:hover { background: var(--panel-border); color: var(--text-main); }
+
+        /* Dashboard Grid */
+        .dashboard { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+
+        .card { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 12px; padding: 1.5rem; backdrop-filter: blur(12px); box-shadow: 0 8px 32px rgba(0,0,0,0.1); }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--panel-border);}
+        .card-title { font-size: 0.9rem; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;}
+        .card-title i { color: var(--accent); }
+
+        /* Score & Verdict Panel */
+        .overview-card { grid-column: span 5; display: flex; align-items: center; justify-content: center; gap: 1.5rem; }
+        .chart-container-doughnut { 
+            position: relative; 
+            width: 140px; 
+            height: 140px; 
+            min-width: 140px; 
+            min-height: 140px; 
+            flex-shrink: 0;
+        }
+        .score-number { 
+            position: absolute; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            font-size: 2.8rem; 
+            font-weight: 900; 
+            color: var(--text-main); 
+            margin: 0;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .verdict-info { 
+            text-align: center; 
+            min-width: 0; 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+        .verdict-badge { 
+            padding: 0.5rem 1.5rem; 
+            border-radius: 20px; 
+            font-weight: bold; 
+            font-size: 1.1rem; 
+            margin-bottom: 10px; 
+            display: inline-block; 
+            letter-spacing: 1px; 
+        }
+        #targetDisplay { 
+            word-break: break-all; 
+            overflow-wrap: break-word; 
+            white-space: normal; 
+            width: 100%; 
+            color: var(--text-muted); 
+            font-size: 0.85rem; 
+            font-family: var(--font-mono);
+        }
+
+        /* Radar Chart Panel */
+        .radar-card { grid-column: span 7; display: flex; flex-direction: column; }
+        .chart-container-radar { height: 220px; width: 100%; display: flex; justify-content: center; }
+
+        /* --- NEW: DOOM SCROLL (Moved to Grid) --- */
+        .doom-scroll-card { grid-column: span 4; display: flex; flex-direction: column; }
+        .doom-window {
+            background: var(--terminal-bg); border-radius: 8px; padding: 1rem; font-family: var(--font-mono); font-size: 0.8rem;
+            color: var(--danger); overflow: hidden; height: 250px; border: 1px solid var(--panel-border); position: relative;
+        }
+        .doom-content { display: flex; flex-direction: column; gap: 0.6rem; position: absolute; bottom: 1rem; width: 95%; }
+        .doom-line { border-left: 2px solid var(--danger); padding-left: 10px; opacity: 0; animation: fadeUp 0.5s forwards; line-height: 1.3;}
+        .doom-ip { color: var(--text-main); font-weight: bold; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Flags Panel */
+        .flags-card { grid-column: span 4; display: flex; flex-direction: column; }
+        .flags-list { display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; height: 250px; padding-right: 5px; }
+        .flag-item { background: rgba(0,0,0,0.1); border: 1px solid var(--panel-border); padding: 1rem; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: flex-start; gap: 10px; }
+        .flag-item.danger { border-left: 3px solid var(--danger); background: rgba(239,68,68,0.1); }
+        .flag-item.warning { border-left: 3px solid var(--warning); background: rgba(245,158,11,0.1); }
+        .flag-item.safe { border-left: 3px solid var(--success); background: rgba(16,185,129,0.1); }
+
+        /* Target Footprint Panel */
+        .footprint-card { grid-column: span 4; display: flex; flex-direction: column; }
+        .footprint-list { display: flex; flex-direction: column; gap: 0.8rem; overflow-y: auto; height: 250px; padding-right: 5px;}
+        .footprint-item {
+            display: flex; justify-content: space-between; align-items: center; padding: 0.9rem; 
+            background: rgba(0,0,0,0.1); border: 1px solid var(--panel-border); border-radius: 8px; font-size: 0.85rem;
+        }
+        .footprint-label { color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;}
+        .footprint-val { font-family: var(--font-mono); color: var(--accent); font-weight: bold; text-align: right; max-width: 60%; word-break: break-word;}
+
+        /* History Table */
+        .history-card { grid-column: span 12; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 1rem; text-align: left; border-bottom: 1px solid var(--panel-border); }
+        th { color: var(--text-muted); font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;}
+        td { font-size: 0.9rem; }
+        .td-url { font-family: var(--font-mono); color: var(--text-main); word-break: break-all; }
+        .badge { padding: 0.3rem 0.8rem; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+        .badge-high { background: rgba(239,68,68,0.2); color: var(--danger); }
+        .badge-low { background: rgba(16,185,129,0.2); color: var(--success); }
+        .badge-med { background: rgba(245,158,11,0.2); color: var(--warning); }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 10px; }
+        
+        /* Print Styles */
+        @media print {
+            body { background: white; color: black; }
+            .theme-switch-wrapper, .search-wrapper, .history-card, .doom-scroll-card { display: none !important; }
+            .card { border: 1px solid #ccc; box-shadow: none; break-inside: avoid; backdrop-filter: none; background: white;}
+            .card-title, header h1 { color: black !important; -webkit-text-fill-color: black; }
+        }
+        
+        @media (max-width: 1000px) { .overview-card, .radar-card, .doom-scroll-card, .flags-card, .footprint-card { grid-column: span 12; } }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="theme-switch-wrapper">
+            <span>THEME</span>
+            <label class="theme-switch" for="checkbox">
+                <input type="checkbox" id="checkbox" />
+                <div class="slider"></div>
+            </label>
+        </div>
+
+        <header>
+            <div>
+                <h1><i class="fas fa-shield-virus"></i> ANALYZR </h1>
+                <p>Phishing URL Analyzer & Threat Feed</p>
+            </div>
+            <button id="exportBtn" class="btn-secondary" onclick="window.print()"><i class="fas fa-file-pdf"></i> Export Report</button>
+        </header>
+
+        <div class="search-wrapper">
+            <div class="search-input-box">
+                <i class="fas fa-crosshairs search-icon"></i>
+                <input type="text" id="urlInput" placeholder="Enter target asset URL..." autocomplete="off">
+            </div>
+            <button id="analyzeBtn" class="btn-primary" onclick="analyzeUrl()"><i class="fas fa-bolt"></i> Execute</button>
+        </div>
+
+        <div class="dashboard" id="dashboard" style="display: none;">
+            
+            <div class="card overview-card">
+                <div class="chart-container-doughnut">
+                    <canvas id="riskChart"></canvas>
+                    <div class="score-number" id="riskScore">0</div>
+                </div>
+                <div class="verdict-info">
+                    <div class="verdict-badge" id="verdict">CLEAN</div>
+                    <p id="targetDisplay">Awaiting target...</p>
+                </div>
+            </div>
+
+            <div class="card radar-card">
+                <div class="card-header">
+                    <span class="card-title"><i class="fas fa-radar"></i> Threat Vector Breakdown</span>
+                </div>
+                <div class="chart-container-radar">
+                    <canvas id="vectorChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card doom-scroll-card">
+                <div class="card-header">
+                    <span class="card-title"><i class="fas fa-globe-americas"></i> Global Threat Feed</span>
+                </div>
+                <div class="doom-window">
+                    <div class="doom-content" id="doomContent"></div>
+                </div>
+            </div>
+
+            <div class="card flags-card">
+                <div class="card-header">
+                    <span class="card-title"><i class="fas fa-biohazard"></i> Triggered Logs</span>
+                    <span id="flagCount" style="background: var(--panel-border); padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; color: var(--text-main);">0</span>
+                </div>
+                <div class="flags-list" id="flagList"></div>
+            </div>
+
+            <div class="card footprint-card">
+                <div class="card-header">
+                    <span class="card-title"><i class="fas fa-fingerprint"></i> Target Footprint</span>
+                </div>
+                <div class="footprint-list">
+                    <div class="footprint-item">
+                        <span class="footprint-label">Server IP</span>
+                        <span class="footprint-val" id="fpIp">--</span>
+                    </div>
+                    <div class="footprint-item">
+                        <span class="footprint-label">Routing ASN</span>
+                        <span class="footprint-val" id="fpAsn">--</span>
+                    </div>
+                    <div class="footprint-item">
+                        <span class="footprint-label">Geo-Origin</span>
+                        <span class="footprint-val" id="fpGeo" style="color: var(--text-main);">--</span>
+                    </div>
+                    <div class="footprint-item">
+                        <span class="footprint-label">SSL Cert</span>
+                        <span class="footprint-val" id="fpCert">--</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="card history-card">
+            <div class="card-header">
+                <span class="card-title"><i class="fas fa-history"></i> Links Scan Ledger</span>
+            </div>
+            <table>
+                <thead><tr><th>Time</th><th>Target URL</th><th>Score</th><th>Verdict</th></tr></thead>
+                <tbody id="historyTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // --- Doom Scroll Logic ---
+        const threats = ["SQL Injection", "DDoS Sync Flood", "Ransomware Payload", "Zero-Day Exploit", "Credential Stuffing", "BGP Hijacking", "Cross-Site Scripting", "Malware Dropper", "Phishing Campaign"];
+        const doomContent = document.getElementById('doomContent');
+        
+        function generateFakeIP() { return `${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}.${Math.floor(Math.random()*255)}`; }
+        
+        setInterval(() => {
+            const threat = threats[Math.floor(Math.random() * threats.length)];
+            const div = document.createElement('div');
+            div.className = 'doom-line';
+            div.innerHTML = `[FATAL] <span class="doom-ip">${generateFakeIP()}</span> executed ${threat} -> PORT ${Math.floor(Math.random() * 9000)}`;
+            doomContent.appendChild(div);
+            if (doomContent.children.length > 8) doomContent.removeChild(doomContent.firstChild);
+        }, 800);
+
+        // --- Theme Logic ---
+        const toggleSwitch = document.querySelector('.theme-switch input[type="checkbox"]');
+        toggleSwitch.addEventListener('change', function(e) {
+            document.body.classList.toggle('light-mode', e.target.checked);
+            Chart.defaults.color = e.target.checked ? '#db2777' : '#a78bfa';
+            
+            if(riskChartInstance) updateChart(currentScore);
+            if(vectorChartInstance) {
+                if (currentScore === 0) {
+                    let defaultColor = e.target.checked ? '#ec4899' : '#a855f7';
+                    let defaultBg = e.target.checked ? 'rgba(236,72,153,0.2)' : 'rgba(168,85,247,0.2)';
+                    vectorChartInstance.data.datasets[0].borderColor = defaultColor;
+                    vectorChartInstance.data.datasets[0].pointBackgroundColor = defaultColor;
+                    vectorChartInstance.data.datasets[0].backgroundColor = defaultBg;
+                }
+                vectorChartInstance.update();
+            }
+        });
+
+        // --- Chart Logic ---
+        let riskChartInstance = null;
+        let vectorChartInstance = null;
+        let currentScore = 0;
+        Chart.defaults.color = '#a78bfa';
+        Chart.defaults.font.family = "'Inter', sans-serif";
+
+        function initCharts() {
+            const ctxRisk = document.getElementById('riskChart').getContext('2d');
+            riskChartInstance = new Chart(ctxRisk, {
+                type: 'doughnut',
+                data: { datasets: [{ data: [0, 100], backgroundColor: ['#10b981', 'rgba(128,128,128,0.1)'], borderWidth: 0, cutout: '75%' }] },
+                options: { responsive: true, maintainAspectRatio: false, animation: { animateScale: true }, plugins: { tooltip: { enabled: false } } }
+            });
+
+            const ctxVector = document.getElementById('vectorChart').getContext('2d');
+            vectorChartInstance = new Chart(ctxVector, {
+                type: 'radar',
+                data: {
+                    labels: ['Structure', 'Reputation', 'Payload Info', 'Entropy', 'Network'],
+                    datasets: [{
+                        label: 'Risk Level',
+                        data: [0, 0, 0, 0, 0],
+                        backgroundColor: 'rgba(168, 85, 247, 0.2)',
+                        borderColor: '#a855f7',
+                        pointBackgroundColor: '#a855f7',
+                        borderWidth: 2
+                    }]
+                },
+                options: { 
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { r: { angleLines: { color: 'rgba(128,128,128,0.2)' }, grid: { color: 'rgba(128,128,128,0.2)' }, pointLabels: { font: { size: 11 } }, ticks: { display: false, max: 100, min: 0 } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        function updateChart(score) {
+            currentScore = score;
+            let color = score >= 50 ? '#ef4444' : (score > 20 ? '#f59e0b' : '#10b981');
+            riskChartInstance.data.datasets[0].data = [score, 100 - score];
+            riskChartInstance.data.datasets[0].backgroundColor = [color, 'rgba(128,128,128,0.1)'];
+            riskChartInstance.update();
+        }
+
+        function generateSimulatedVectors(score, flags) {
+            let structure = score > 0 ? 10 : 0; let rep = score > 0 ? 10 : 0; let payload = 0; let entropy = 0; let net = 0;
+            
+            flags.forEach(f => {
+                f = f.toLowerCase();
+                if(f.includes('nested') || f.includes('hyphen')) structure += 40;
+                if(f.includes('tld') || f.includes('vendor')) rep += 50;
+                if(f.includes('keyword') || f.includes('@')) payload += 60;
+                if(f.includes('entropy')) entropy += 80;
+                if(f.includes('ip address') || f.includes('http')) net += 60;
+            });
+            
+            vectorChartInstance.data.datasets[0].data = [
+                Math.min(structure, 100), Math.min(rep, 100), Math.min(payload, 100), Math.min(entropy, 100), Math.min(net, 100)
+            ];
+            
+            let isLight = document.body.classList.contains('light-mode');
+            let defaultColor = isLight ? '#ec4899' : '#a855f7';
+            let defaultBg = isLight ? 'rgba(236,72,153,0.2)' : 'rgba(168,85,247,0.2)';
+
+            let color = score >= 50 ? '#ef4444' : (score > 20 ? '#f59e0b' : defaultColor);
+            let bgColor = score >= 50 ? 'rgba(239,68,68,0.2)' : (score > 20 ? 'rgba(245,158,11,0.2)' : defaultBg);
+
+            vectorChartInstance.data.datasets[0].borderColor = color;
+            vectorChartInstance.data.datasets[0].pointBackgroundColor = color;
+            vectorChartInstance.data.datasets[0].backgroundColor = bgColor;
+            vectorChartInstance.update();
+        }
+
+        window.onload = () => { initCharts(); fetchHistory(); };
+
+        async function fetchHistory() {
+            try {
+                const res = await fetch("/api/history");
+                const data = await res.json();
+                const tbody = document.getElementById("historyTableBody");
+                tbody.innerHTML = "";
+                data.forEach(row => {
+                    let badgeClass = row.score >= 50 ? "badge-high" : (row.score > 20 ? "badge-med" : "badge-low");
+                    tbody.innerHTML += `<tr>
+                        <td style="color: var(--text-muted)">${row.time}</td>
+                        <td class="td-url">${row.url}</td>
+                        <td><strong>${row.score}</strong>/100</td>
+                        <td><span class="badge ${badgeClass}">${row.verdict}</span></td>
+                    </tr>`;
+                });
+            } catch (e) { console.error("History fetch failed."); }
+        }
+
+        async function analyzeUrl() {
+            const urlInput = document.getElementById("urlInput").value;
+            const btn = document.getElementById("analyzeBtn");
+            const dashboard = document.getElementById("dashboard");
+            
+            if (!urlInput) return;
+
+            dashboard.style.display = "grid";
+            document.getElementById("exportBtn").style.display = "flex";
+            btn.disabled = true; btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Executing`;
+            
+            updateChart(0);
+            
+            let isLight = document.body.classList.contains('light-mode');
+            let defaultColor = isLight ? '#ec4899' : '#a855f7';
+            let defaultBg = isLight ? 'rgba(236,72,153,0.2)' : 'rgba(168,85,247,0.2)';
+            
+            vectorChartInstance.data.datasets[0].data = [0,0,0,0,0];
+            vectorChartInstance.data.datasets[0].borderColor = defaultColor;
+            vectorChartInstance.data.datasets[0].pointBackgroundColor = defaultColor;
+            vectorChartInstance.data.datasets[0].backgroundColor = defaultBg;
+            vectorChartInstance.update();
+            
+            document.getElementById("riskScore").innerText = "0";
+            document.getElementById("verdict").innerText = "ANALYZING";
+            document.getElementById("verdict").style.background = "var(--panel-border)";
+            document.getElementById("verdict").style.color = "var(--text-main)";
+            document.getElementById("flagList").innerHTML = "";
+            document.getElementById("targetDisplay").innerText = urlInput;
+
+            // Reset Fake Footprint
+            document.getElementById("fpIp").innerText = "--";
+            document.getElementById("fpAsn").innerText = "--";
+            document.getElementById("fpGeo").innerText = "--";
+            document.getElementById("fpCert").innerText = "--";
+
+            try {
+                const response = await fetch("/api/analyze", {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url: urlInput })
+                });
+                const data = await response.json();
+                
+                // Simulate processing time since we removed the terminal typing logs
+                await new Promise(r => setTimeout(r, 1200)); 
+                
+                document.getElementById("riskScore").innerText = data.risk_score;
+                updateChart(data.risk_score);
+                generateSimulatedVectors(data.risk_score, data.flags);
+                
+                const isBad = data.risk_score >= 50;
+
+                const verdictElem = document.getElementById("verdict");
+                if (isBad) {
+                    verdictElem.innerText = "MALICIOUS";
+                    verdictElem.style.background = "rgba(239,68,68,0.2)";
+                    verdictElem.style.color = "var(--danger)";
+                } else if (data.risk_score > 20) {
+                    verdictElem.innerText = "SUSPICIOUS";
+                    verdictElem.style.background = "rgba(245,158,11,0.2)";
+                    verdictElem.style.color = "var(--warning)";
+                } else {
+                    verdictElem.innerText = "CLEAN";
+                    verdictElem.style.background = "rgba(16,185,129,0.2)";
+                    verdictElem.style.color = "var(--success)";
+                }
+
+                // Populate Fake Footprint Data
+                document.getElementById("fpIp").innerText = generateFakeIP();
+                document.getElementById("fpAsn").innerText = isBad ? "AS" + Math.floor(Math.random() * 90000) : "AS13335 (CLOUDFLARE)";
+                
+                const badGeos = ["RU (Russian Federation)", "KP (North Korea)", "IR (Iran)", "CN (China)"];
+                const goodGeos = ["US (United States)", "IE (Ireland)", "DE (Germany)"];
+                document.getElementById("fpGeo").innerText = isBad ? badGeos[Math.floor(Math.random()*badGeos.length)] : goodGeos[Math.floor(Math.random()*goodGeos.length)];
+                document.getElementById("fpGeo").style.color = isBad ? "var(--danger)" : "var(--text-main)";
+
+                let certStat = urlInput.startsWith("https") ? (isBad ? "UNTRUSTED" : "VALID (RSA 2048)") : "NONE (HTTP)";
+                document.getElementById("fpCert").innerText = certStat;
+                document.getElementById("fpCert").style.color = urlInput.startsWith("https") && !isBad ? "var(--success)" : "var(--danger)";
+
+                // Update Flags
+                const flagList = document.getElementById("flagList");
+                document.getElementById("flagCount").innerText = data.flags.length;
+                if (data.flags.length === 1 && data.risk_score === 0) {
+                     flagList.innerHTML = `<div class="flag-item safe"><i class="fas fa-check-circle" style="color: var(--success); margin-top: 3px;"></i><div>${data.flags[0]}</div></div>`;
+                } else {
+                    flagList.innerHTML = data.flags.map(f => {
+                        let fClass = f.includes("CRITICAL") || data.risk_score >= 50 ? "danger" : "warning";
+                        let iconColor = fClass === "danger" ? "var(--danger)" : "var(--warning)";
+                        return `<div class="flag-item ${fClass}"><i class="fas fa-exclamation-triangle" style="color: ${iconColor}; margin-top: 3px;"></i><div>${f}</div></div>`;
+                    }).join('');
+                }
+
+                fetchHistory();
+            } catch (error) {
+                alert("Backend communication failure. Make sure your Python server is running.");
+            } finally {
+                btn.disabled = false; btn.innerHTML = `<i class="fas fa-bolt"></i> Execute`;
+            }
+        }
+
+        document.getElementById("urlInput").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") { e.preventDefault(); analyzeUrl(); }
+        });
+    </script>
+</body>
+</html>
